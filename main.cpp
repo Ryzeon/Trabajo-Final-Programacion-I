@@ -40,6 +40,11 @@ struct PiecePosition {
         text += "]";
         return text;
     }
+
+    bool equals(PiecePosition pos) const {
+//   Debug     cout << "Verificando si " << pos.letter << " = " << letter << " con " << pos.num << " = " << num << endl;
+        return pos.letter == letter && num == pos.num;
+    }
 };
 
 struct GamePlayer {
@@ -116,7 +121,8 @@ string askForPlayerName(string question, string wrongAnswer);
 
 int askForColor(string question, string wrongAnswer);
 
-PiecePosition askForAMovement(GamePlayer &player, const string &ask = "mover");
+PiecePosition
+askForAMovement(GamePlayer &player, const string &ask = "poner en el tablero", const bool &checkSelf = false);
 
 string getColorOfDotFromBoard(string input, int locI, int locJ);
 
@@ -134,21 +140,25 @@ bool takePlayerPiece(GamePlayer &taker, PiecePosition pieceToTake);
 
 void startNextPhase();
 
+bool checkCurrentPhase();
+
+bool hasAnAdjacentPieze(PiecePosition pos, GamePlayer &player);
+
 bool canMove(const GamePlayer &player);
 
-void checkWinner();
+bool checkWinner();
 
 void printWord(const string &text) {
     for (char i: text) {
         cout << i;
-        this_thread::sleep_for(chrono::milliseconds(15));
+        this_thread::sleep_for(chrono::milliseconds(6));
     }
     cout << endl;
 }
 
-void putRandomPieces() {
+void putRandomPieces(int maxPieces) {
     int counta = 1, count = 1;
-    while (counta <= 9 && count <= 9) {
+    while (counta <= maxPieces && count <= maxPieces) {
         for (int i = 0; i < 7; ++i) {
             for (int j = 0; j < 7; ++j) {
                 int numer = game.board.board[i][j];
@@ -156,18 +166,29 @@ void putRandomPieces() {
                     continue;
                 }
                 bool xd = rand() % 2;
+                char iC = (char) (i + 1 + 64);
+                int xdxdd = j + 1;
+                GamePlayer *ga;
                 if (xd) {
-                    if (counta <= 9) {
+                    if (counta <= maxPieces) {
+                        ga = &game.board.players[0];
+                        putPiece({
+                                         iC,
+                                         xdxdd
+                                 }, *ga);
                         // cout << "poniendo en posicion ju1 (" << i << ", " << j << ")" << " -> " << numer << endl;
-                        game.board.board[i][j] = 1;
                         counta++;
                     } else {
                         // cout << "el jugador 1 ya tiene 9 " << endl;
                     }
                 } else {
-                    if (count <= 9) {
+                    if (count <= maxPieces) {
                         // cout << "poniendo en posicion ju2 (" << i << ", " << j << ")" << " -> " << numer << endl;
-                        game.board.board[i][j] = 2;
+                        ga = &game.board.players[1];
+                        putPiece({
+                                         iC,
+                                         xdxdd
+                                 }, *ga);
                         count++;
                     } else {
                         // cout << "el jugador 2 ya tiene 9 " << endl;
@@ -176,9 +197,7 @@ void putRandomPieces() {
             }
         }
     }
-    game.board.players[0].amountOfPiecesInBoard = 9;
-    game.board.players[1].amountOfPiecesInBoard = 9;
-    drawGame();
+//    drawGame();
 
     //    putPiece('A', 1, game.board.players[0]);
     //    putPiece('D', 2, game.board.players[0]);
@@ -193,7 +212,7 @@ void putRandomPieces() {
 
 int main() {
     system("color 0F"); // Allow using the other colors :jeje:
-    game.test = false; // Put game.test = true for test game, only for fast deploy :ojito:
+    game.test = true; // Put game.test = true for test game, only for fast deploy :ojito:
     if (game.test) {
         initGame();
     } else {
@@ -369,16 +388,18 @@ void initGame() {
             "None"
     };
     game.currentPhase = 0;
-    for (int i = 0; i < 2; ++i) {
-        fflush(stdin);
-        string ask;
-        ask += "Jugador #";
-        ask += to_string(i + 1);
-        ask += " ingrese su nombre >> ";
-        string name = askForPlayerName(ask, "Ingresa un nombre correcto!");
-        int color = askForColor("Elije un color entre [1-6] >> ", "Ingrese un valor correcto!");
-        game.board.players[i].name = name;
-        game.board.players[i].color = color;
+    if (!game.test) {
+        for (int i = 0; i < 2; ++i) {
+            fflush(stdin);
+            string ask;
+            ask += "Jugador #";
+            ask += to_string(i + 1);
+            ask += " ingrese su nombre >> ";
+            string name = askForPlayerName(ask, "Ingresa un nombre correcto!");
+            int color = askForColor("Elije un color entre [1-6] >> ", "Ingrese un valor correcto!");
+            game.board.players[i].name = name;
+            game.board.players[i].color = color;
+        }
     }
     cleanConsole();
 //    putRandomPieces();
@@ -397,20 +418,32 @@ void initGame() {
     } else {
         startPlayer = &game.board.players[1];
     }
-    drawGame(startPlayer->getColor() + startPlayer->name + " comienza! ->" + to_string((int) firstPlayerStart) +
-             RESET_COLOR);
-    game.currentTurn = startPlayer->identifier;
+    game.currentTurn = (startPlayer->identifier) - 1;
     drawGame(startPlayer->getColor() + startPlayer->name + " comienza!" + RESET_COLOR);
+    startNextPhase();
+    putRandomPieces(8);
     while (!game.ended) {
-        if (startPlayer->amountOfPiecesInBoard < 9) {
-            PiecePosition piecePosition = askForAMovement(*startPlayer);
-            if (isMovementValid(*startPlayer, piecePosition)) {
-                putPiece(piecePosition, *startPlayer);
-            } else {
-                cout << "Ingresa una posicion valida!" << endl;
-            }
+        if (checkWinner()) {
+            return;
+        }
+        GamePlayer *playerTurn;
+        playerTurn = &game.board.players[game.currentTurn];
+        checkWinner();
+        if (game.currentPhase >= 2) {
+            playerTurn->pieceToMove = askForAMovement(*playerTurn, "mover en el tablero", true);
+        }
+        PiecePosition piecePosition = askForAMovement(*playerTurn);
+        if (isMovementValid(*playerTurn, piecePosition)) {
+            putPiece(piecePosition, *playerTurn);
+            game.currentTurn = game.nextTurn();
+        } else {
+            cout << "Ingresa una posicion valida!" << endl;
+        }
+        if (checkCurrentPhase()) {
+            startNextPhase();
         }
     }
+    winnerScreen();
 }
 
 void cleanConsole() {
@@ -485,7 +518,7 @@ int askForColor(string question, string wrongAnswer) {
     return finalValue;
 }
 
-PiecePosition askForAMovement(GamePlayer &player, const string &ask) {
+PiecePosition askForAMovement(GamePlayer &player, const string &ask, const bool &checkSelf) {
     PiecePosition pos{};
     bool done = false;
     while (!done) {
@@ -502,11 +535,27 @@ PiecePosition askForAMovement(GamePlayer &player, const string &ask) {
             int posLetter = (letter - 64) - 1;
             int posRow = (row - 48) - 1;
             if ((posLetter >= 0 && posLetter <= 6) && (posRow >= 0 && posRow <= 6)) {
-                done = true;
                 pos = PiecePosition{
                         letter,
                         (posRow + 1)
                 };
+                if (player.pieceToMove.letter == 'N') {
+                    if (!checkSelf) {
+                        done = true;
+                    } else {
+                        if (game.board.board[posLetter][posRow] == player.identifier) {
+                            done = true;
+                        } else {
+                            cout << "No puedes mover una ficha que no es tuya!!" << endl;
+                        }
+                    }
+                } else {
+                    if (!player.pieceToMove.equals(pos)) {
+                        done = true;
+                    } else {
+                        cout << "No puedes ingresar la misma ficha que quieres mover!" << endl;
+                    }
+                }
             } else {
                 cout << "Ingresa una valor correcto!" << endl;
             }
@@ -731,7 +780,9 @@ bool isMovementValid(GamePlayer &player, PiecePosition movement) {
             return pieceInBoard == 0; // Free space
         }
         case 2: {
-
+            if (pieceInBoard == 1 || pieceInBoard == 2) {
+                return false; // No puede mover la pieza a un lugar donde ya esta una pieza
+            }
             break;
         }
         case 3: {
@@ -769,22 +820,39 @@ void startNextPhase() {
             printWord(MAIN_COLOR + "La primera fase ha comenzado, colocen sus fichas!" + RESET_COLOR);
             break;
         case 2:
-            printWord(MAIN_COLOR + "La segunda fase ha comenzado, solo puedes colocar ficha" + RESET_COLOR);
+            printWord(MAIN_COLOR + "La segunda fase ha comenzado, solo puedes colocar ficha si esta adyacente" +
+                      RESET_COLOR);
             break;
         case 3:
-            printWord(MAIN_COLOR + "La tercera fase ha comenzado, el primero tenga 2 fichas pierde!" + RESET_COLOR);
+            printWord(MAIN_COLOR + "La tercera fase ha comenzado, el primero que tenga 2 fichas pierde!" + RESET_COLOR);
             break;
     }
+}
+
+bool checkCurrentPhase() {
+    switch (game.currentPhase) {
+        case 1:
+            return game.board.players[0].amountOfPiecesInBoard == 9 && game.board.players[1].amountOfPiecesInBoard == 9;
+        case 2:
+            break;
+        case 3:
+            break;
+    }
+    return false;
+}
+
+bool hasAnAdjacentPieze(PiecePosition position, GamePlayer &player) {
+    return true;
 }
 
 bool canMove(const GamePlayer &player) {
     return true;
 }
 
-void checkWinner() {
+bool checkWinner() {
     bool done = false;
     if (game.ended) {
-        return;
+        return true;
     }
 
     // Check if are any player on the board with 2 pieces.
@@ -797,7 +865,8 @@ void checkWinner() {
             game.ended = true;
             int playerWinner = player.identifier == 1 ? 0 : 1;
             game.winner = game.board.players[playerWinner];
+            return true;
         }
     }
-
+    return false;
 }
