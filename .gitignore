@@ -14,6 +14,7 @@ null
 *.obj
 
 *.vcxproj.*
+*.vcxproj
 
 # Precompiled Headers
 *.gch
