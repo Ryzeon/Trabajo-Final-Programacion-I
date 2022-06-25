@@ -2,7 +2,7 @@
  
 ### Made by @ryzeon from scratch
 
-### Commits info in caso
+### Commits info in case
 
 * 4978a4d
     * Adding check nextGamePhase
