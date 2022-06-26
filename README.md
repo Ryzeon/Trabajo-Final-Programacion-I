@@ -15,3 +15,6 @@
 * b5b8e8
   * Separate board from gameboar
   * ALl done check if a piece are adjacent -> 2 loops, reducible code xd
+* 9f6dd3782d351d43cc4a4fe0153287928f4b32bc
+  * Fixed some issue with prev code xd
+  * Done can move

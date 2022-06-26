@@ -101,14 +101,14 @@ struct PiecePosition {
     }
 
     PiecePosition up(int identifier) {
-        if (num == 1) {
+        if (num >= 1) {
             return PiecePosition{'N', 0}; // None
         }
         return find(UP, identifier);
     }
 
     PiecePosition down(int identifier) {
-        if (num == 7) {
+        if (num >= 7) {
             return PiecePosition{'N', 0}; // None
         }
         return find(DOWN, identifier);
@@ -116,51 +116,85 @@ struct PiecePosition {
 
     /**
      *
-     * @param origin
-     * @param findCase -> 0: Prev, 1: Next, 2: Up, 3: Down
+     * @param type @enum {PREV, NEXT, UP, DOWN}
+     * @param identifier
      * @return
      */
     PiecePosition find(IteratorType type, int identifier) {
-        //    cout << "Find wirh " << type << "\n";
         PiecePosition found = {'N', 0};
         int *originPos = fetch();
+        //  cout << "Find in " << to_string() << " in [" << originPos[0] << "," << originPos[1] << endl;
+        bool firstPassed = false;
         switch (type) {
             case NEXT:
             case PREV:
                 for (int i = originPos[0]; (type == PREV ? i >= 0 : i <= 6); (type == PREV ? i-- : i++)) {
+                    if (!firstPassed) {
+                        firstPassed = true; // Ignore first loop xd
+                        continue;
+                    }
                     if (!found.isEmpty()) {
+                        //   cout << "Found n oes en,pyu xd";
                         continue;
                     }
                     int prevPost = baseBoard.board[i][originPos[1]];
-                    //   cout << "Variable " << prevPost << " in [" << i << "," << originPos[1] << "]\n";
+                    //     cout << "Variable " << (type == NEXT ? "next" : "prev") << " " << prevPost << " in [" << i << ","
+                    //       << originPos[1] << "]\n";
                     if (prevPost == 88) {
+                        //    cout << "break ya no avanza poruqe es una pos " << prevPost << "\n";
                         return found; // Break if 99
                     }
-                    if (prevPost == identifier) {
-                        char aLetter = (char) (i + 65);
-                        found = {
-                                aLetter,
-                                num
-                        };
+                    if (prevPost >= 0 && prevPost <= 2) { // 0 free
+                        if (prevPost == identifier) {
+                            //    cout << "Found a pieces with " << identifier << " value \n";
+                            char aLetter = (char) (i + 65);
+                            return found = {
+                                    aLetter,
+                                    num
+                            };
+                        } else {
+                            //  cout << "break ya no avanza poruqe es una pos " << prevPost << "\n";
+                            return found;
+                        }
                     }
                 }
                 break;
             case UP:
             case DOWN:
-                for (int i = originPos[1]; (type == DOWN ? i >= 0 : i <= 6); (type == DOWN ? i-- : i++)) {
+                for (int i = originPos[1]; (type == DOWN ? i <= 6 : i >= 0); (type == DOWN ? i++ : i--)) {
+                    if (!firstPassed) {
+                        firstPassed = true; // Ignore first loop xd
+                        continue;
+                    }
                     if (!found.isEmpty()) {
                         continue;
                     }
                     int prevPost = baseBoard.board[originPos[0]][i];
+//                    cout << "Variable " << (type == UP ? "up" : "down") << " " << prevPost << " in [" << originPos[0]
+//                         << "," << i << "]\n";
                     if (prevPost == 88) {
+                  //      cout << "break ya no avanza poruqe es una pos " << prevPost << "\n";
                         return found; // Break if 99
                     }
-                    if (prevPost == identifier) {
-                        found = {
-                                letter,
-                                i + 1
-                        };
+                    if (prevPost >= 0 && prevPost <= 2) { // 0 free
+                        if (prevPost == identifier) {
+                        //    cout << "Found a pieces with " << identifier << " value \n";
+                            found = {
+                                    letter,
+                                    i + 1
+                            };
+                            return found;
+                        } else {
+                            // cout << "break ya no avanza poruqe es una pos " << prevPost << "\n";
+                            return found;
+                        }
                     }
+//                    if (prevPost == identifier) {
+//                        found = {
+//                                letter,
+//                                i + 1
+//                        };
+//                    }
                 }
                 break;
         }
@@ -258,7 +292,7 @@ void startNextPhase();
 
 bool checkCurrentPhase();
 
-bool hasAnAdjacentPiece(PiecePosition position, GamePlayer &player);
+bool hasAnAdjacentPiece(PiecePosition position, GamePlayer &player, const bool &check = false);
 
 bool canMove(GamePlayer &player);
 
@@ -534,8 +568,7 @@ void initGame() {
         }
         GamePlayer *playerTurn;
         playerTurn = &game.players[game.currentTurn];
-        checkWinner();
-        if (game.currentPhase >= 2 && playerTurn->pieceToMove.isEmpty()) {
+        if (game.currentPhase >= 2) {
             playerTurn->pieceToMove = askForAMovement(*playerTurn, "mover en el tablero", true);
         }
         PiecePosition piecePosition = askForAMovement(*playerTurn);
@@ -543,6 +576,9 @@ void initGame() {
             putPiece(piecePosition, *playerTurn);
             game.currentTurn = game.nextTurn();
         } else {
+            if (game.currentPhase >= 2) {
+                playerTurn->resetPieceMove();
+            }
             cout << "Ingresa una posicion valida!" << endl;
         }
         if (checkCurrentPhase()) {
@@ -702,9 +738,11 @@ void putPiece(PiecePosition piecePosition, GamePlayer &player) {
         player.addPiece();
     }
 
-    // Render
+    // Render console debugs xd
+//    if (game.currentPhase != 2) {
+//        drawGame();
+//    }
     drawGame();
-
 }
 
 PiecePosition *getPiecesPosition(const GamePlayer &gamePlayer) {
@@ -736,6 +774,10 @@ GamePlayer getPlayerByPiece(PiecePosition piecePosition) {
 }
 
 void drawGame(const string &message) {
+    if (Console::WindowHeight != 100 && Console::WindowHeight != 50)
+    {
+        Console::SetWindowSize(100, 50);
+    }
     cleanConsole();
     cout << "     | A |   | B |   | C |      | D |      | E |   | F |   | G |" << endl;
     cout << "\n";
@@ -890,7 +932,7 @@ bool isMovementValid(GamePlayer &player, PiecePosition movement) {
         }
         case 2: {
             if (pieceInBoard == 1 || pieceInBoard == 2) {
-             //   cout << "Retonra\n";
+                //   cout << "Retonra\n";
                 return false; // No puede mover la pieza a un lugar donde ya esta una pieza
             }
             return hasAnAdjacentPiece(movement, player);
@@ -953,43 +995,50 @@ bool checkCurrentPhase() {
     return false;
 }
 
-bool hasAnAdjacentPiece(PiecePosition position, GamePlayer &player) {
-    PiecePosition prev = position.prev(player.identifier);
-    PiecePosition next = position.next(player.identifier);
-    PiecePosition up = position.up(player.identifier);
-    PiecePosition down = position.down(player.identifier);
+bool hasAnAdjacentPiece(PiecePosition position, GamePlayer &player, const bool &check) {
+    PiecePosition prev = check ? position.prev(0) : player.pieceToMove.prev(0); // Its free value
+    PiecePosition next = check ? position.next(0) : player.pieceToMove.next(0); // Its free value
+    PiecePosition up = check ? position.up(0) : player.pieceToMove.up(0);// Its free value
+    PiecePosition down = check ? position.down(0) : player.pieceToMove.down(0);// Its free value
     if (!prev.isEmpty()) {
-        return !prev.equals(player.pieceToMove);
+//        cout << "\nPrev no empty";
+        return check || prev.equals(position);
     }
     if (!next.isEmpty()) {
-        return !next.equals(player.pieceToMove);
+//        cout << "\nnext no empty";
+        return check || next.equals(position);
     }
     if (!up.isEmpty()) {
-        return !up.equals(player.pieceToMove);
+//        cout << "\nup no empty";
+        return check || up.equals(position);
     }
     if (!down.isEmpty()) {
-        return !down.equals(player.pieceToMove);
+        //    cout << "\ndown no empty";
+        return check || down.equals(position);
     }
     return false;
 }
 
 bool canMove(GamePlayer &player) {
+    int adjacentPieces = 0;
     if (game.currentPhase == 2) {
-        int goodPieces = 0;
         PiecePosition *pieces = getPiecesPosition(player);
         for (int i = 0; i < player.amountOfPiecesInBoard; ++i) {
-            if (goodPieces > 0) {
+            if (adjacentPieces >= 1) {
                 break;
             }
-            PiecePosition ps = pieces[i];
-            if (hasAnAdjacentPiece(ps, player)) {
-                goodPieces++;
+            PiecePosition *ps;
+            ps = &pieces[i];
+//            cout << "Verificando piesa adyacente" << ps->to_string() << endl;
+            if (hasAnAdjacentPiece(*ps, player, true)) {
+                adjacentPieces++;
+                break;
             }
         }
-        return goodPieces > 0;
     } else {
-        return true;
+        adjacentPieces = 1;
     }
+    return adjacentPieces >= 1;
 }
 
 bool checkWinner() {
