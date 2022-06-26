@@ -1,4 +1,4 @@
-# Trabajo-Final-Programacion-I
+ # Trabajo-Final-Programacion-I
  
 ### Made by @ryzeon from scratch
 
@@ -12,3 +12,6 @@
     * Adding putRandomPiece(int moves) // TO fast dev deploy
     * Added checkCurrentPhase(); verify it's time to set the next moves
     * Adding a bool cons into askForMovement to check movement
+* b5b8e8
+  * Separate board from gameboar
+  * ALl done check if a piece are adjacent -> 2 loops, reducible code xd
