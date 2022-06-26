@@ -70,7 +70,7 @@ struct GamePlayer {
 };
 
 struct GameBoard {
-    int board[7][7];
+    int baseBoard[7][7];
     GamePlayer players[2];
 
     GamePlayer getPlayer(int n) {
@@ -81,7 +81,7 @@ struct GameBoard {
 struct Game {
 
     bool test = true;
-    GameBoard board;
+    GameBoard baseBoard;
     GamePlayer winner;
     bool ended;
     int currentPhase;
@@ -151,7 +151,7 @@ void putRandomPieces() {
     while (counta <= 9 && count <= 9) {
         for (int i = 0; i < 7; ++i) {
             for (int j = 0; j < 7; ++j) {
-                int numer = game.board.board[i][j];
+                int numer = game.baseBoard.baseBoard[i][j];
                 if (numer == 88 || numer == 99 || numer == 1 || numer == 2) {
                     continue;
                 }
@@ -159,7 +159,7 @@ void putRandomPieces() {
                 if (xd) {
                     if (counta <= 9) {
                         // cout << "poniendo en posicion ju1 (" << i << ", " << j << ")" << " -> " << numer << endl;
-                        game.board.board[i][j] = 1;
+                        game.baseBoard.baseBoard[i][j] = 1;
                         counta++;
                     } else {
                         // cout << "el jugador 1 ya tiene 9 " << endl;
@@ -167,7 +167,7 @@ void putRandomPieces() {
                 } else {
                     if (count <= 9) {
                         // cout << "poniendo en posicion ju2 (" << i << ", " << j << ")" << " -> " << numer << endl;
-                        game.board.board[i][j] = 2;
+                        game.baseBoard.baseBoard[i][j] = 2;
                         count++;
                     } else {
                         // cout << "el jugador 2 ya tiene 9 " << endl;
@@ -176,19 +176,19 @@ void putRandomPieces() {
             }
         }
     }
-    game.board.players[0].amountOfPiecesInBoard = 9;
-    game.board.players[1].amountOfPiecesInBoard = 9;
+    game.baseBoard.players[0].amountOfPiecesInBoard = 9;
+    game.baseBoard.players[1].amountOfPiecesInBoard = 9;
     drawGame();
 
-    //    putPiece('A', 1, game.board.players[0]);
-    //    putPiece('D', 2, game.board.players[0]);
-    //    putPiece('F', 2, game.board.players[0]);
-    //    putPiece('B', 2, game.board.players[0]);
+    //    putPiece('A', 1, game.baseBoard.players[0]);
+    //    putPiece('D', 2, game.baseBoard.players[0]);
+    //    putPiece('F', 2, game.baseBoard.players[0]);
+    //    putPiece('B', 2, game.baseBoard.players[0]);
     //
-    //    putPiece('G', 1, game.board.players[1]);
-    //    putPiece('G', 4, game.board.players[1]);
-    //    putPiece('C', 5, game.board.players[1]);
-    //    putPiece('B', 6, game.board.players[1]);
+    //    putPiece('G', 1, game.baseBoard.players[1]);
+    //    putPiece('G', 4, game.baseBoard.players[1]);
+    //    putPiece('C', 5, game.baseBoard.players[1]);
+    //    putPiece('B', 6, game.baseBoard.players[1]);
 }
 
 int main() {
@@ -337,7 +337,7 @@ void printGameInstructions() {
 
 void initGame() {
     srand(time(NULL));
-    game.board = GameBoard{
+    game.baseBoard = GameBoard{
             {
                     {0, 99, 99, 0, 99, 99, 0},
                     {99, 0, 99, 0, 99, 0, 99},
@@ -377,13 +377,13 @@ void initGame() {
         ask += " ingrese su nombre >> ";
         string name = askForPlayerName(ask, "Ingresa un nombre correcto!");
         int color = askForColor("Elije un color entre [1-6] >> ", "Ingrese un valor correcto!");
-        game.board.players[i].name = name;
-        game.board.players[i].color = color;
+        game.baseBoard.players[i].name = name;
+        game.baseBoard.players[i].color = color;
     }
     cleanConsole();
 //    putRandomPieces();
-//    PiecePosition *pieces1 = getPiecesPosition(game.board.players[0]);
-//    PiecePosition *pieces2 = getPiecesPosition(game.board.players[1]);
+//    PiecePosition *pieces1 = getPiecesPosition(game.baseBoard.players[0]);
+//    PiecePosition *pieces2 = getPiecesPosition(game.baseBoard.players[1]);
 //    for (int i = 0; i < 9; ++i) {
 //        cout << "Jugador #1" << pieces1[i].to_string() << endl;
 //    }
@@ -393,9 +393,9 @@ void initGame() {
     bool firstPlayerStart = rand() > (RAND_MAX / 2);
     GamePlayer *startPlayer;
     if (firstPlayerStart) {
-        startPlayer = &game.board.players[0];
+        startPlayer = &game.baseBoard.players[0];
     } else {
-        startPlayer = &game.board.players[1];
+        startPlayer = &game.baseBoard.players[1];
     }
     drawGame(startPlayer->getColor() + startPlayer->name + " comienza! ->" + to_string((int) firstPlayerStart) +
              RESET_COLOR);
@@ -418,7 +418,7 @@ void cleanConsole() {
 }
 
 bool isColorAvailable(int color) {
-    for (auto &player: game.board.players) {
+    for (auto &player: game.baseBoard.players) {
         if (color == player.color) {
             return false;
         }
@@ -427,7 +427,7 @@ bool isColorAvailable(int color) {
 }
 
 bool isValidName(const string &input) {
-    for (auto &player: game.board.players) {
+    for (auto &player: game.baseBoard.players) {
         if (input == player.name) {
             return false;
         }
@@ -516,14 +516,14 @@ PiecePosition askForAMovement(GamePlayer &player, const string &ask) {
 }
 
 string getColorOfDotFromBoard(string input, int locI, int locJ) {
-    int loc = game.board.board[locI][locJ];
+    int loc = game.baseBoard.baseBoard[locI][locJ];
     if (loc == 99 || loc == 88) {
         return input;
     }
     if (loc == 1) {
-        return game.board.players[0].getColor() + input + RESET_COLOR;
+        return game.baseBoard.players[0].getColor() + input + RESET_COLOR;
     } else if (loc == 2) {
-        return game.board.players[1].getColor() + input + RESET_COLOR;
+        return game.baseBoard.players[1].getColor() + input + RESET_COLOR;
     } else {
         return input;
     }
@@ -532,14 +532,14 @@ string getColorOfDotFromBoard(string input, int locI, int locJ) {
 void putPiece(PiecePosition piecePosition, GamePlayer &player) {
     int *pos = piecePosition.fetch();
     cout << "Updating to " << player.identifier << " in " << pos[0] << " , " << pos[2] << endl;
-    game.board.board[pos[0]][pos[1]] = player.identifier;
+    game.baseBoard.baseBoard[pos[0]][pos[1]] = player.identifier;
 
     bool add = true;
     if (player.pieceToMove.letter != 'N') {
         add = false;
         int *posBefore = player.pieceToMove.fetch();
         cout << "Updating to 0" << " in " << posBefore[0] << " , " << posBefore[2] << endl;
-        game.board.board[posBefore[0]][posBefore[1]] = 0; // Clean the move piece
+        game.baseBoard.baseBoard[posBefore[0]][posBefore[1]] = 0; // Clean the move piece
         player.resetPieceMove(); // Reset Move
     }
 
@@ -556,7 +556,7 @@ PiecePosition *getPiecesPosition(const GamePlayer &gamePlayer) {
     int index = 0;
     for (int i = 0; i < 7; ++i) {
         for (int j = 0; j < 7; ++j) {
-            int number = game.board.board[i][j];
+            int number = game.baseBoard.baseBoard[i][j];
             if (number == 99 || number == 88 || number == 0) {
                 continue;
             }
@@ -575,8 +575,8 @@ PiecePosition *getPiecesPosition(const GamePlayer &gamePlayer) {
 
 GamePlayer getPlayerByPiece(PiecePosition piecePosition) {
     int *pos = piecePosition.fetch();
-    int onBoard = game.board.board[pos[0]][pos[1]];
-    return onBoard == 1 ? game.board.players[0] : onBoard == 2 ? game.board.players[1] : GamePlayer{"NONE"};
+    int onBoard = game.baseBoard.baseBoard[pos[0]][pos[1]];
+    return onBoard == 1 ? game.baseBoard.players[0] : onBoard == 2 ? game.baseBoard.players[1] : GamePlayer{"NONE"};
 }
 
 void drawGame(const string &message) {
@@ -678,7 +678,7 @@ void drawGame(const string &message) {
     // End fila 7
     cout << "\n     | A |   | B |   | C |      | D |      | E |   | F |   | G |\n" << endl;
     for (int i = 0; i < 2; ++i) {
-        cout << game.board.players[i].getColor() << game.board.players[i].name << " -> Informacion!" << RESET_COLOR;
+        cout << game.baseBoard.players[i].getColor() << game.baseBoard.players[i].name << " -> Informacion!" << RESET_COLOR;
         if (i == 0) {
             cout << "         |         ";
         } else {
@@ -687,7 +687,7 @@ void drawGame(const string &message) {
     }
     for (int i = 0; i < 2; ++i) {
         for (int j = 0; j < 2; ++j) {
-            GamePlayer player = game.board.players[j];
+            GamePlayer player = game.baseBoard.players[j];
             cout << player.getColor();
             switch (i) {
                 case 0: {
@@ -721,9 +721,9 @@ void drawGame(const string &message) {
 
 bool isMovementValid(GamePlayer &player, PiecePosition movement) {
     int *moves = movement.fetch();
-    int pieceInBoard = game.board.board[moves[0]][moves[1]];
+    int pieceInBoard = game.baseBoard.baseBoard[moves[0]][moves[1]];
     if (pieceInBoard == 99 || pieceInBoard == 88) {
-        // Return because this value is an invalid movement on board.
+        // Return because this value is an invalid movement on baseBoard.
         return false;
     }
     switch (game.currentPhase) {
@@ -753,7 +753,7 @@ bool takePlayerPiece(GamePlayer taker, PiecePosition pieceToTake) {
     }
     ownerPiece.amountOfPiecesInBoard = ownerPiece.amountOfPiecesInBoard - 1;
     int *pos = pieceToTake.fetch();
-    game.board.board[pos[0]][pos[1]] = 0; // Clean board space
+    game.baseBoard.baseBoard[pos[0]][pos[1]] = 0; // Clean baseBoard space
     return true;
 }
 
@@ -787,8 +787,8 @@ void checkWinner() {
         return;
     }
 
-    // Check if are any player on the board with 2 pieces.
-    for (const GamePlayer &player: game.board.players) {
+    // Check if are any player on the baseBoard with 2 pieces.
+    for (const GamePlayer &player: game.baseBoard.players) {
         if (done) { // Avoid check loop
             continue;
         }
@@ -796,7 +796,7 @@ void checkWinner() {
             done = true;
             game.ended = true;
             int playerWinner = player.identifier == 1 ? 0 : 1;
-            game.winner = game.board.players[playerWinner];
+            game.winner = game.baseBoard.players[playerWinner];
         }
     }
 
