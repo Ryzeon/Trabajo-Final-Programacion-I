@@ -132,7 +132,7 @@ struct PiecePosition {
                         continue;
                     }
                     int prevPost = baseBoard.board[i][originPos[1]];
-                 //   cout << "Variable " << prevPost << " in [" << i << "," << originPos[1] << "]\n";
+                    //   cout << "Variable " << prevPost << " in [" << i << "," << originPos[1] << "]\n";
                     if (prevPost == 88) {
                         return found; // Break if 99
                     }
@@ -260,7 +260,7 @@ bool checkCurrentPhase();
 
 bool hasAnAdjacentPiece(PiecePosition position, GamePlayer &player);
 
-bool canMove(const GamePlayer &player);
+bool canMove(GamePlayer &player);
 
 bool checkWinner();
 
@@ -890,24 +890,24 @@ bool isMovementValid(GamePlayer &player, PiecePosition movement) {
         }
         case 2: {
             if (pieceInBoard == 1 || pieceInBoard == 2) {
-                cout << "Retonra\n";
+             //   cout << "Retonra\n";
                 return false; // No puede mover la pieza a un lugar donde ya esta una pieza
             }
             return hasAnAdjacentPiece(movement, player);
         }
         case 3: {
-            return pieceInBoard == 0;
+            return pieceInBoard == 0; // Salto
             break;
         }
     }
     return true;
 }
 
-bool isMovementMakeAWindmill(GamePlayer player, PiecePosition movement) {
+bool isMovementMakeAWindmill(GamePlayer &player, PiecePosition movement) {
     return false;
 }
 
-bool takePlayerPiece(GamePlayer taker, PiecePosition pieceToTake) {
+bool takePlayerPiece(GamePlayer &taker, PiecePosition pieceToTake) {
     GamePlayer ownerPiece = getPlayerByPiece(pieceToTake);
     if (ownerPiece.name == taker.name) {
         return false; // Return false because its same player and cannot take this own piece.
@@ -955,9 +955,9 @@ bool checkCurrentPhase() {
 
 bool hasAnAdjacentPiece(PiecePosition position, GamePlayer &player) {
     PiecePosition prev = position.prev(player.identifier);
-    PiecePosition next = position.prev(player.identifier);
-    PiecePosition up = position.prev(player.identifier);
-    PiecePosition down = position.prev(player.identifier);
+    PiecePosition next = position.next(player.identifier);
+    PiecePosition up = position.up(player.identifier);
+    PiecePosition down = position.down(player.identifier);
     if (!prev.isEmpty()) {
         return !prev.equals(player.pieceToMove);
     }
@@ -973,8 +973,23 @@ bool hasAnAdjacentPiece(PiecePosition position, GamePlayer &player) {
     return false;
 }
 
-bool canMove(const GamePlayer &player) {
-    return true;
+bool canMove(GamePlayer &player) {
+    if (game.currentPhase == 2) {
+        int goodPieces = 0;
+        PiecePosition *pieces = getPiecesPosition(player);
+        for (int i = 0; i < player.amountOfPiecesInBoard; ++i) {
+            if (goodPieces > 0) {
+                break;
+            }
+            PiecePosition ps = pieces[i];
+            if (hasAnAdjacentPiece(ps, player)) {
+                goodPieces++;
+            }
+        }
+        return goodPieces > 0;
+    } else {
+        return true;
+    }
 }
 
 bool checkWinner() {
@@ -984,7 +999,7 @@ bool checkWinner() {
     }
 
     // Check if are any player on the baseBoard with 2 pieces.
-    for (const GamePlayer &player: game.players) {
+    for (GamePlayer &player: game.players) {
         if (done) {
             // Avoid check loop
             continue;
