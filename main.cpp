@@ -588,7 +588,7 @@ void menu();
 
 void initGame();
 
-void drawGame(const string &message = "X");
+void drawGame(const string &message = "x");
 
 bool isColorAvailable(int color);
 
@@ -607,7 +607,7 @@ string getColorOfDotFromBoard(string input, int locI, int locJ);
 
 PiecePosition *getPiecesPosition(const GamePlayer &player);
 
-GamePlayer* getPlayerByPiece(PiecePosition piecePosition);
+GamePlayer *getPlayerByPiece(PiecePosition piecePosition);
 
 void putPiece(PiecePosition piecePosition, GamePlayer &player);
 
@@ -873,44 +873,44 @@ void printGameInstructions() {
     cout
             << "---------------------------------------------------INSTRUCCIONES----------------------------------------------------"
             << endl;
-//    printWord(
-//            "En la primera fase del juego, cada jugador en su turno coloca una de sus 9 fichas sobre cualquiera de los puntos.");
-//    printWord(
-//            "del tablero que estan libres. Durante esta fase no es posible mover las fichas ya situadas en el tablero.");
-//    cout << "\n";
-//    printWord(
-//            "Una vez colocadas las 18 fichas sobre el tablero comienza la segunda fase, durante la cual cada jugador en su");
-//    printWord("turno mueve una de sus fichas a un punto adyacente libre a traves de alguna de las lineas del tablero.");
-//    printWord("Si no puede hacerlo, ha perdido el juego.");
-//    cout << "\n";
-//    printWord(
-//            "Cada jugador, cuando incorpora una ficha al tablero o la desplaza, debe intentar completar un molino o 3 en raya,");
-//    printWord(
-//            "es decir, una secuencia de 3 fichas del mismo color situadas sobre los 3 puntos de una misma linea. Cada vez que");
-//    printWord(
-//            "se completa un molino, el jugador debe capturar una ficha adversaria, que es sacada del tablero y ya no volvera a");
-//    printWord(
-//            "ser jugada. Siempre que se completa un molino se realiza una captura, incluso aunque el molino haya sido completado");
-//    printWord("previamente y se repita de nuevo al retornar una misma ficha a un punto que ocupaba anteriormente.");
-//    cout << "\n";
-//    printWord(
-//            "El jugador que realiza la captura elige la ficha a capturar entre todas las fichas del adversario que no forman");
-//    printWord("parte de ningun molino.");
-//    printWord(
-//            "En el caso de que todas las fichas del rival formen parte de algun molino, elige libremente entre todas ellas.");
-//    cout << "\n";
-//    printWord(
-//            "Cuando un jugador dispone unicamente de 3 fichas sobre el tablero como consecuencia de haber sufrido 6 capturas,");
-//    printWord(
-//            "comienza la tercera fase del juego en la que se permite el \"vuelo\", de tal manera que las fichas de dicho jugador");
-//    printWord(
-//            "pueden saltar libremente a cualquier punto vacio del tablero, no solo a los adyacentes, es decir, desde cualquier");
-//    printWord("punto hasta cualquier punto vacante.");
-//    printWord("Tan pronto como le quiten otra ficha, habra perdido el juego.");
-//    cout << "\n";
-//    printWord(
-//            "Final del juego Un jugador vence la partida cuando el rival solo tiene 2 fichas o cuando no puede realizar ningun");
-//    printWord("movimiento por estar todas sus fichas bloqueadas.");
+    printWord(
+            "En la primera fase del juego, cada jugador en su turno coloca una de sus 9 fichas sobre cualquiera de los puntos.");
+    printWord(
+            "del tablero que estan libres. Durante esta fase no es posible mover las fichas ya situadas en el tablero.");
+    cout << "\n";
+    printWord(
+            "Una vez colocadas las 18 fichas sobre el tablero comienza la segunda fase, durante la cual cada jugador en su");
+    printWord("turno mueve una de sus fichas a un punto adyacente libre a traves de alguna de las lineas del tablero.");
+    printWord("Si no puede hacerlo, ha perdido el juego.");
+    cout << "\n";
+    printWord(
+            "Cada jugador, cuando incorpora una ficha al tablero o la desplaza, debe intentar completar un molino o 3 en raya,");
+    printWord(
+            "es decir, una secuencia de 3 fichas del mismo color situadas sobre los 3 puntos de una misma linea. Cada vez que");
+    printWord(
+            "se completa un molino, el jugador debe capturar una ficha adversaria, que es sacada del tablero y ya no volvera a");
+    printWord(
+            "ser jugada. Siempre que se completa un molino se realiza una captura, incluso aunque el molino haya sido completado");
+    printWord("previamente y se repita de nuevo al retornar una misma ficha a un punto que ocupaba anteriormente.");
+    cout << "\n";
+    printWord(
+            "El jugador que realiza la captura elige la ficha a capturar entre todas las fichas del adversario que no forman");
+    printWord("parte de ningun molino.");
+    printWord(
+            "En el caso de que todas las fichas del rival formen parte de algun molino, elige libremente entre todas ellas.");
+    cout << "\n";
+    printWord(
+            "Cuando un jugador dispone unicamente de 3 fichas sobre el tablero como consecuencia de haber sufrido 6 capturas,");
+    printWord(
+            "comienza la tercera fase del juego en la que se permite el \"vuelo\", de tal manera que las fichas de dicho jugador");
+    printWord(
+            "pueden saltar libremente a cualquier punto vacio del tablero, no solo a los adyacentes, es decir, desde cualquier");
+    printWord("punto hasta cualquier punto vacante.");
+    printWord("Tan pronto como le quiten otra ficha, habra perdido el juego.");
+    cout << "\n";
+    printWord(
+            "Final del juego Un jugador vence la partida cuando el rival solo tiene 2 fichas o cuando no puede realizar ningun");
+    printWord("movimiento por estar todas sus fichas bloqueadas.");
     cout
             << "--------------------------------------------------------------------------------------------------------------------"
             << endl;
@@ -976,9 +976,9 @@ void initGame() {
     game.currentTurn = (startPlayer->identifier) - 1;
     drawGame(startPlayer->getColor() + startPlayer->name + " comienza!" + RESET_COLOR);
     startNextPhase();
-//    if (game.test) {
-    putRandomPieces(8);
-//    }
+    if (game.test) {
+        putRandomPieces(8);
+    }
     while (!game.ended) {
         if (checkWinner()) {
             break;
@@ -1150,7 +1150,8 @@ void putPiece(PiecePosition piecePosition, GamePlayer &player) {
         baseBoard.board[posBefore[0]][posBefore[1]] = 0; // Clean the move piece
         if (isMovementMakeAWindmill(player.identifier, piecePosition)) {
 //            cout << "Hace molino elije una ficha" << endl;
-            cout << player.getColor() << player.name << " hizo molino, ahora escoge una ficha de tu rival!" + RESET_COLOR
+            cout << player.getColor() << player.name
+                 << " hizo molino, ahora escoge una ficha de tu rival!" + RESET_COLOR
                  << endl;
             bool freeMove = false;
             if (allPiecesAreOnWill(*game.getPlayer(!(player.identifier - 1)))) {
@@ -1211,7 +1212,7 @@ PiecePosition *getPiecesPosition(const GamePlayer &gamePlayer) {
     return pieces;
 }
 
-GamePlayer* getPlayerByPiece(PiecePosition piecePosition) {
+GamePlayer *getPlayerByPiece(PiecePosition piecePosition) {
     int *pos = piecePosition.fetch();
     int onBoard = baseBoard.board[pos[0]][pos[1]];
     return onBoard == 1 ? &game.players[0] : onBoard == 2 ? &game.players[1] : new GamePlayer{"NONE"};
@@ -1515,7 +1516,7 @@ bool checkWinner() {
         if (player.amountOfPiecesInBoard <= 2 || !canMove(player)) {
             done = true;
             game.ended = true;
-            int playerWinner = player.identifier == 2 ? 1 : 0;
+            int playerWinner = player.identifier == 1 ? 0 : 1;
             game.winner = game.players[playerWinner];
             return true;
         }

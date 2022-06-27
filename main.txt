@@ -17,9 +17,29 @@
 #include <thread>
 
 using namespace std;
+using namespace System;
 
 string RESET_COLOR = "\033[m";
 string MAIN_COLOR = "\033[1;32m";
+
+struct GameBoard {
+    int board[7][7];
+} baseBoard = {
+        {
+                {0, 99, 99, 0, 99, 99, 0}, // 0
+                {99, 0, 99, 0, 99, 0, 99}, // 1
+                {99, 99, 0, 0, 0, 99, 99}, // 2
+                {0, 0, 0, 88, 0, 0, 0}, // 99 because it's a blank value
+                {99, 99, 0, 0, 0, 99, 99},
+                {99, 0, 99, 0, 99, 0, 99},
+                {0, 99, 99, 0, 99, 99, 0}
+        }
+};
+
+// Enum docs -> https://docs.microsoft.com/en-us/cpp/cpp/enumerations-cpp?view=msvc-170
+enum IteratorType {
+    PREV, NEXT, UP, DOWN
+};
 
 struct PiecePosition {
     char letter;
@@ -39,6 +59,142 @@ struct PiecePosition {
         text += std::to_string(num);
         text += "]";
         return text;
+    }
+
+    int valInBoard() {
+        return baseBoard.board[((letter - 64) - 1)][(num - 1)];
+    }
+
+    bool isEmpty() const {
+        return letter == 'N';
+    }
+
+    bool equals(PiecePosition pos) const {
+        return pos.letter == letter && num == pos.num;
+    }
+
+    bool hasPrev(int identifier) {
+        return !prev(identifier).isEmpty();
+    }
+
+    bool hasNext(int identifier) {
+        return !next(identifier).isEmpty();
+    }
+
+    bool hasUp(int identifier) {
+        return !up(identifier).isEmpty();
+    }
+
+    bool hasDown(int identifier) {
+        return !down(identifier).isEmpty();
+    }
+
+    PiecePosition prev(int identifier) {
+        if (letter == 'A') {
+            return PiecePosition{'N', 0}; // None
+        }
+        return find(PREV, identifier);
+    }
+
+    PiecePosition next(int identifier) {
+        if (letter == 'G') {
+            return PiecePosition{'N', 0}; // None
+        }
+        return find(NEXT, identifier);
+    }
+
+    PiecePosition up(int identifier) {
+        if (num >= 1) {
+            return PiecePosition{'N', 0}; // None
+        }
+        return find(UP, identifier);
+    }
+
+    PiecePosition down(int identifier) {
+        if (num >= 7) {
+            return PiecePosition{'N', 0}; // None
+        }
+        return find(DOWN, identifier);
+    }
+
+    /**
+     *
+     * @param type @enum {PREV, NEXT, UP, DOWN}
+     * @param identifier
+     * @return
+     */
+    PiecePosition find(IteratorType type, int identifier) {
+        PiecePosition found = {'N', 0};
+        int *originPos = fetch();
+        //  cout << "Find in " << to_string() << " in [" << originPos[0] << "," << originPos[1] << endl;
+        bool firstPassed = false;
+        switch (type) {
+            case NEXT:
+            case PREV:
+                for (int i = originPos[0]; (type == PREV ? i >= 0 : i <= 6); (type == PREV ? i-- : i++)) {
+                    if (!firstPassed) {
+                        firstPassed = true; // Ignore first loop xd
+                        continue;
+                    }
+                    if (!found.isEmpty()) {
+                        //   cout << "Found n oes en,pyu xd";
+                        continue;
+                    }
+                    int prevPost = baseBoard.board[i][originPos[1]];
+                    //     cout << "Variable " << (type == NEXT ? "next" : "prev") << " " << prevPost << " in [" << i << ","
+                    //       << originPos[1] << "]\n";
+                    if (prevPost == 88) {
+                        //    cout << "break ya no avanza poruqe es una pos " << prevPost << "\n";
+                        return found; // Break if 99
+                    }
+                    if (prevPost >= 0 && prevPost <= 2) { // 0 free
+                        if (prevPost == identifier) {
+                            //    cout << "Found a pieces with " << identifier << " value \n";
+                            char aLetter = (char) (i + 65);
+                            return found = {
+                                    aLetter,
+                                    num
+                            };
+                        } else {
+                            //  cout << "break ya no avanza poruqe es una pos " << prevPost << "\n";
+                            return found;
+                        }
+                    }
+                }
+                break;
+            case UP:
+            case DOWN:
+                for (int i = originPos[1]; (type == DOWN ? i >= 0 : i <= 6); (type == DOWN ? i++ : i--)) {
+                    if (!firstPassed) {
+                        firstPassed = true; // Ignore first loop xd
+                        continue;
+                    }
+                    if (!found.isEmpty()) {
+                        continue;
+                    }
+                    int prevPost = baseBoard.board[originPos[0]][i];
+//                    cout << "Variable " << (type == UP ? "up" : "down") << " " << prevPost << " in [" << originPos[0]
+//                         << "," << i << "]\n";
+                    if (prevPost == 88) {
+//                        cout << "break ya no avanza poruqe es una pos " << prevPost << "\n";
+                        return found; // Break if 99
+                    }
+                    if (prevPost >= 0 && prevPost <= 2) { // 0 free
+                        if (prevPost == identifier) {
+//                            cout << "Found a pieces with " << identifier << " value \n";
+                            return found = {
+                                    letter,
+                                    i + 1
+                            };
+                        } else {
+//                            cout << "break ya no avanza poruqe es una pos " << prevPost << "\n";
+                            return found;
+                        }
+                    }
+                }
+                break;
+        }
+        return found;
     }
 };
 
@@ -69,30 +225,358 @@ struct GamePlayer {
     }
 };
 
-struct GameBoard {
-    int baseBoard[7][7];
-    GamePlayer players[2];
-
-    GamePlayer getPlayer(int n) {
-        return players[n];
-    }
-};
-
 struct Game {
-
     bool test = true;
-    GameBoard baseBoard;
     GamePlayer winner;
     bool ended;
     int currentPhase;
 
     int currentTurn = 0;
 
+    GamePlayer players[2];
+
+    GamePlayer *getPlayer(int n) {
+        return &players[n];
+    }
+
     int nextTurn() {
         bool c = currentTurn;
         return !c;
     }
 } game;
+
+
+struct WindMillPiece {
+
+    PiecePosition pieces[3];
+
+    bool isOnMill(const PiecePosition pos) {
+        for (const PiecePosition piece: pieces) {
+            if (pos.equals(piece)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    bool free() {
+        return !isCompleteFor(1) || !isCompleteFor(2); // 1 o 2
+    }
+
+    bool isCompleteFor(const int identifer) {
+        bool complete = true;
+        for (PiecePosition p: pieces) {
+            if (p.valInBoard() != identifer) {
+                complete = false;
+                break;
+            }
+        }
+        return complete;
+    }
+} windMills[20]
+        {
+                // Now horizontals
+                WindMillPiece{
+                        {
+                                PiecePosition{
+                                        'A', 1
+                                },
+                                PiecePosition{
+                                        'D', 1
+                                },
+                                PiecePosition{
+                                        'G', 1
+                                }
+                        }
+//                        ,
+//                        0
+                }, WindMillPiece{
+                {
+                        PiecePosition{
+                                'B', 2
+                        },
+                        PiecePosition{
+                                'D', 2
+                        },
+                        PiecePosition{
+                                'F', 2
+                        }
+                }
+//                ,
+//                0
+        }, WindMillPiece{
+                {
+                        PiecePosition{
+                                'C', 3
+                        },
+                        PiecePosition{
+                                'D', 3
+                        },
+                        PiecePosition{
+                                'E', 3
+                        }
+                }
+//                ,
+//                0
+        }, WindMillPiece{
+                {
+                        PiecePosition{
+                                'A', 4
+                        },
+                        PiecePosition{
+                                'B', 4
+                        },
+                        PiecePosition{
+                                'C', 4
+                        }
+                }
+//                ,
+//                0
+        }, WindMillPiece{
+                {
+                        PiecePosition{
+                                'E', 4
+                        },
+                        PiecePosition{
+                                'F', 4
+                        },
+                        PiecePosition{
+                                'G', 4
+                        }
+                }
+//                ,
+//                0
+        }, WindMillPiece{
+                {
+                        PiecePosition{
+                                'C', 5
+                        },
+                        PiecePosition{
+                                'D', 5
+                        },
+                        PiecePosition{
+                                'F', 5
+                        }
+                }
+//                ,
+//                0
+        }, WindMillPiece{
+                {
+                        PiecePosition{
+                                'B', 6
+                        },
+                        PiecePosition{
+                                'D', 6
+                        },
+                        PiecePosition{
+                                'F', 6
+                        }
+                }
+//                ,
+//                0
+        }, WindMillPiece{
+                {
+                        PiecePosition{
+                                'A', 7
+                        },
+                        PiecePosition{
+                                'D', 7
+                        },
+                        PiecePosition{
+                                'B', 7
+                        }
+                }
+//                ,
+//                0
+        },
+                // Now add verticals
+                WindMillPiece{
+                        {
+                                PiecePosition{
+                                        'A', 1
+                                },
+                                PiecePosition{
+                                        'A', 4
+                                },
+                                PiecePosition{
+                                        'A', 7
+                                }
+                        }
+//                        ,
+//                        0
+                },
+                WindMillPiece{
+                        {
+                                PiecePosition{
+                                        'B', 2
+                                },
+                                PiecePosition{
+                                        'B', 4
+                                },
+                                PiecePosition{
+                                        'B', 6
+                                }
+                        }
+//                        ,
+//                        0
+                },
+                WindMillPiece{
+                        {
+                                PiecePosition{
+                                        'C', 3
+                                },
+                                PiecePosition{
+                                        'C', 4
+                                },
+                                PiecePosition{
+                                        'C', 5
+                                }
+                        }
+//                        ,
+//                        0
+                },
+                WindMillPiece{
+                        {
+                                PiecePosition{
+                                        'D', 1
+                                },
+                                PiecePosition{
+                                        'D', 2
+                                },
+                                PiecePosition{
+                                        'D', 3
+                                }
+                        }
+//                        ,
+//                        0
+                },
+                WindMillPiece{
+                        {
+                                PiecePosition{
+                                        'D', 5
+                                },
+                                PiecePosition{
+                                        'D', 6
+                                },
+                                PiecePosition{
+                                        'D', 7
+                                }
+                        }
+//                        ,
+//                        0
+                },
+                WindMillPiece{
+                        {
+                                PiecePosition{
+                                        'E', 3
+                                },
+                                PiecePosition{
+                                        'E', 4
+                                },
+                                PiecePosition{
+                                        'E', 5
+                                }
+                        }
+//                        ,
+//                        0
+                },
+                WindMillPiece{
+                        {
+                                PiecePosition{
+                                        'F', 2
+                                },
+                                PiecePosition{
+                                        'F', 4
+                                },
+                                PiecePosition{
+                                        'F', 6
+                                }
+                        }
+//                        ,
+//                        0
+                },
+                WindMillPiece{
+                        {
+                                PiecePosition{
+                                        'G', 1
+                                },
+                                PiecePosition{
+                                        'G', 4
+                                },
+                                PiecePosition{
+                                        'G', 7
+                                }
+                        }
+//                        ,
+//                        0
+                },
+                // Now diagonal
+                WindMillPiece{
+                        {
+                                PiecePosition{
+                                        'A', 1
+                                },
+                                PiecePosition{
+                                        'B', 2
+                                },
+                                PiecePosition{
+                                        'C', 3
+                                }
+                        }
+//                        ,
+//                        0
+                },
+                WindMillPiece{
+                        {
+                                PiecePosition{
+                                        'G', 1
+                                },
+                                PiecePosition{
+                                        'F', 2
+                                },
+                                PiecePosition{
+                                        'E', 3
+                                }
+                        }
+//                        ,
+//                        0
+                },
+                WindMillPiece{
+                        {
+                                PiecePosition{
+                                        'C', 5
+                                },
+                                PiecePosition{
+                                        'B', 6
+                                },
+                                PiecePosition{
+                                        'A', 7
+                                }
+                        }
+//                        ,
+//                        0
+                },
+                WindMillPiece{
+                        {
+                                PiecePosition{
+                                        'E', 5
+                                },
+                                PiecePosition{
+                                        'F', 6
+                                },
+                                PiecePosition{
+                                        'G', 7
+                                }
+                        }
+//                        ,
+//                        0
+                }
+        };
+
+struct PossibleWindMill {
+    int amount;
+    WindMillPiece *pieces;
+};
 
 void welcomeScreen();
 
@@ -116,58 +600,74 @@ string askForPlayerName(string question, string wrongAnswer);
 
 int askForColor(string question, string wrongAnswer);
 
-PiecePosition askForAMovement(GamePlayer &player, const string &ask = "mover");
+PiecePosition
+askForAMovement(GamePlayer &player, const string &ask = "poner en el tablero", const bool &checkSelf = false);
 
 string getColorOfDotFromBoard(string input, int locI, int locJ);
 
 PiecePosition *getPiecesPosition(const GamePlayer &player);
 
-GamePlayer getPlayerByPiece(PiecePosition piecePosition);
+GamePlayer *getPlayerByPiece(PiecePosition piecePosition);
 
 void putPiece(PiecePosition piecePosition, GamePlayer &player);
 
 bool isMovementValid(GamePlayer &player, PiecePosition movement);
 
-bool isMovementMakeAWindmill(GamePlayer &player, PiecePosition movement);
+bool isMovementMakeAWindmill(int identifer, PiecePosition movement);
 
 bool takePlayerPiece(GamePlayer &taker, PiecePosition pieceToTake);
 
 void startNextPhase();
 
-bool canMove(const GamePlayer &player);
+bool checkCurrentPhase();
 
-void checkWinner();
+bool hasAnAdjacentPiece(PiecePosition position, GamePlayer &player, const bool &check = false);
+
+bool canMove(GamePlayer &player);
+
+bool checkWinner();
 
 void printWord(const string &text) {
     for (char i: text) {
         cout << i;
-        this_thread::sleep_for(chrono::milliseconds(15));
+        this_thread::sleep_for(chrono::milliseconds(6));
     }
     cout << endl;
 }
 
-void putRandomPieces() {
+void putRandomPieces(int maxPieces) {
     int counta = 1, count = 1;
-    while (counta <= 9 && count <= 9) {
+    while (counta <= maxPieces && count <= maxPieces) {
         for (int i = 0; i < 7; ++i) {
             for (int j = 0; j < 7; ++j) {
-                int numer = game.baseBoard.baseBoard[i][j];
+                int numer = baseBoard.board[i][j];
                 if (numer == 88 || numer == 99 || numer == 1 || numer == 2) {
                     continue;
                 }
                 bool xd = rand() % 2;
+                char iC = (char) (i + 1 + 64);
+                int xdxdd = j + 1;
+                GamePlayer *ga;
                 if (xd) {
-                    if (counta <= 9) {
+                    if (counta <= maxPieces) {
+                        ga = &game.players[0];
+                        putPiece({
+                                         iC,
+                                         xdxdd
+                                 }, *ga);
                         // cout << "poniendo en posicion ju1 (" << i << ", " << j << ")" << " -> " << numer << endl;
-                        game.baseBoard.baseBoard[i][j] = 1;
                         counta++;
                     } else {
                         // cout << "el jugador 1 ya tiene 9 " << endl;
                     }
                 } else {
-                    if (count <= 9) {
+                    if (count <= maxPieces) {
                         // cout << "poniendo en posicion ju2 (" << i << ", " << j << ")" << " -> " << numer << endl;
-                        game.baseBoard.baseBoard[i][j] = 2;
+                        ga = &game.players[1];
+                        putPiece({
+                                         iC,
+                                         xdxdd
+                                 }, *ga);
                         count++;
                     } else {
                         // cout << "el jugador 2 ya tiene 9 " << endl;
@@ -176,9 +676,7 @@ void putRandomPieces() {
             }
         }
     }
-    game.baseBoard.players[0].amountOfPiecesInBoard = 9;
-    game.baseBoard.players[1].amountOfPiecesInBoard = 9;
-    drawGame();
+    //    drawGame();
 
     //    putPiece('A', 1, game.baseBoard.players[0]);
     //    putPiece('D', 2, game.baseBoard.players[0]);
@@ -191,8 +689,64 @@ void putRandomPieces() {
     //    putPiece('B', 6, game.baseBoard.players[1]);
 }
 
+PossibleWindMill getWindMillsWithPiece(PiecePosition piece) {
+//    cout << "GodddgetWindMillsWithPiecedd\n";
+//    cout << "GodgetWindMillsWithPiecedddd\n";
+//    cout << "GoddgetWindMillsWithPieceddd\n";
+//    cout << "GoddgetWindMillsWithPieceddd\n";
+//    cout << "GodddgetWindMillsWithPiecedd\n";
+//    cout << "GodddgetWindMillsWithPiecedd\n";
+//    cout << "GoddgetWindMillsWithPieceddd\n";
+    int pieces = 0;
+    for (WindMillPiece mindWillPiece: windMills) {
+        if (mindWillPiece.isOnMill(piece)) {
+            pieces++;
+        }
+    }
+//    cout << "tiene << " << pieces;
+    WindMillPiece *toReturn;
+    toReturn = new WindMillPiece[pieces];
+    int index = 0;
+    for (WindMillPiece mindWillPiece: windMills) {
+        if (mindWillPiece.isOnMill(piece)) {
+            toReturn[index] = mindWillPiece;
+            index++;
+        }
+    }
+    return PossibleWindMill{
+            pieces,
+            toReturn
+    };
+}
+
+bool isOnWindWill(PiecePosition piece) {
+    cout << "\nisOnWindWill";
+    for (auto &mindWill: windMills) {
+        if (mindWill.free()) continue;
+        if (mindWill.isOnMill(piece)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool allPiecesAreOnWill(const GamePlayer &player) {
+    PiecePosition *pieces = getPiecesPosition(player);
+    for (int i = 0; i < player.amountOfPiecesInBoard; ++i) {
+        const PossibleWindMill possible = getWindMillsWithPiece(pieces[i]);
+        for (int j = 0; j < possible.amount; ++j) {
+            WindMillPiece *windMillPiece = &possible.pieces[i];
+            if (windMillPiece->free()) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
 int main() {
     system("color 0F"); // Allow using the other colors :jeje:
+
     game.test = false; // Put game.test = true for test game, only for fast deploy :ojito:
     if (game.test) {
         initGame();
@@ -200,6 +754,7 @@ int main() {
         welcomeScreen();
     }
     system("pause");
+    getch();
     return 0;
 }
 
@@ -238,8 +793,38 @@ void welcomeScreen() {
     printGameInstructions();
 }
 
-void winnerScreen() {
+int winScreen[9][104] = {
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0},
+        {2, 2, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 0, 0, 0, 0, 2, 2, 2, 2, 2, 0, 0, 0, 0, 2, 2, 0, 0, 0, 0, 2, 2, 2, 2, 0, 0, 0, 0, 0, 3, 2, 4, 0, 0, 0, 0, 0, 2, 2, 2, 2, 0, 0, 2, 2, 2, 2, 0, 0, 2, 2, 0, 0, 0, 0, 0, 4, 2, 2, 2, 0, 0, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 2, 2, 2, 1, 1, 1, 1, 1, 1, 0, 3, 0, 0, 0, 0},
+        {2, 2, 3, 3, 0, 0, 0, 0, 2, 2, 2, 2, 3, 0, 2, 2, 0, 0, 3, 4, 2, 2, 2, 0, 0, 2, 2, 0, 3, 0, 0, 2, 2, 2, 2, 3, 3, 0, 0, 0, 3, 2, 4, 3, 0, 0, 0, 0, 2, 2, 2, 2, 3, 3, 2, 2, 2, 2, 3, 0, 2, 2, 2, 2, 0, 0, 0, 4, 2, 2, 2, 0, 3, 2, 2, 2, 2, 3, 3, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0},
+        {2, 2, 0, 3, 0, 0, 2, 2, 2, 2, 2, 2, 3, 0, 2, 2, 3, 3, 0, 4, 2, 2, 2, 3, 3, 2, 2, 0, 3, 0, 0, 2, 2, 2, 2, 3, 3, 0, 0, 0, 3, 2, 4, 3, 0, 0, 0, 0, 2, 2, 2, 2, 3, 3, 2, 2, 2, 2, 3, 0, 2, 2, 3, 3, 2, 4, 0, 4, 2, 2, 2, 3, 3, 2, 2, 2, 2, 3, 3, 0, 0, 0, 0, 1, 1, 0, 3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 3, 1, 1, 3, 3},
+        {0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 0, 2, 2, 3, 3, 0, 4, 2, 2, 2, 0, 3, 2, 2, 0, 3, 0, 0, 2, 2, 2, 2, 3, 3, 0, 0, 0, 3, 2, 4, 3, 2, 2, 0, 0, 2, 2, 2, 2, 3, 3, 2, 2, 2, 2, 3, 0, 2, 2, 3, 3, 0, 3, 2, 2, 2, 2, 2, 0, 3, 2, 2, 2, 2, 3, 3, 0, 0, 0, 0, 0, 0, 4, 4, 4, 1, 1, 1, 1, 1, 1, 1, 1, 4, 4, 4, 4, 0, 0, 3, 3},
+        {0, 0, 0, 0, 2, 2, 2, 2, 3, 3, 0, 0, 0, 0, 2, 2, 3, 3, 0, 4, 2, 2, 2, 3, 3, 2, 2, 0, 3, 0, 0, 2, 2, 2, 2, 3, 3, 0, 0, 0, 3, 2, 4, 3, 2, 2, 3, 3, 2, 2, 2, 2, 0, 3, 2, 2, 2, 2, 3, 0, 2, 2, 3, 3, 0, 0, 0, 4, 2, 2, 2, 0, 3, 0, 0, 0, 0, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 1, 1, 1, 3, 0, 3, 3, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 2, 2, 2, 2, 3, 3, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 3, 3, 3, 3, 0, 0, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 0, 0, 0, 0, 0, 4, 2, 3, 0, 2, 2, 2, 2, 0, 3, 3, 3, 2, 2, 2, 2, 3, 0, 2, 2, 3, 3, 0, 0, 0, 4, 2, 2, 2, 0, 3, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 1, 1, 1, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 3, 3, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 3, 3, 0, 0, 0, 0, 0, 0, 3, 3, 3, 3, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 3, 3, 3, 3, 0, 0, 0, 0, 3, 3, 3, 3, 0, 0, 3, 3, 0, 0, 0, 0, 0, 0, 3, 3, 3, 0, 0, 3, 3, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 3, 3, 3, 3, 0, 0, 0, 0, 0, 0},
+};
 
+void winnerScreen() {
+    Console::SetWindowSize(104, 12);
+    cleanConsole();
+    cout << "\n";
+    for (int i = 0; i < 9; i++)
+        for (int j = 0; j < 104; j++) {
+            Console::SetCursorPosition(j, i + 2);
+            if (winScreen[i][j] == 1) {
+                Console::ForegroundColor = ConsoleColor::Yellow;
+                cout << (char) 219;
+            }
+            if (winScreen[i][j] == 2) {
+                Console::ForegroundColor = ConsoleColor::White;
+                cout << (char) 219;
+            }
+
+        }
+    Console::SetCursorPosition(52 - game.winner.name.length(), 11);
+    cout << game.winner.getColor() << game.winner.name;
+    getch();
 }
 
 void menu() {
@@ -337,80 +922,87 @@ void printGameInstructions() {
 
 void initGame() {
     srand(time(NULL));
-    game.baseBoard = GameBoard{
-            {
-                    {0, 99, 99, 0, 99, 99, 0},
-                    {99, 0, 99, 0, 99, 0, 99},
-                    {99, 99, 0, 0, 0, 99, 99},
-                    {0, 0, 0, 88, 0, 0, 0}, // 99 because it's a blank value
-                    {99, 99, 0, 0, 0, 99, 99},
-                    {99, 0, 99, 0, 99, 0, 99},
-                    {0, 99, 99, 0, 99, 99, 0}
-            },
-            {
-                    GamePlayer{
-                            "Player1",
-                            game.test ? 2 : 0,
-                            9,
-                            0,
-                            1
-                    },
-                    GamePlayer{
-                            "Player2",
-                            game.test ? 3 : 0,
-                            9,
-                            0,
-                            2
-                    }
-            }
-    };
+    game.players[0] =
+            GamePlayer{
+                    "Player1",
+                    game.test ? 2 : 0,
+                    9,
+                    0,
+                    1
+            };
+    game.players[1] =
+            GamePlayer{
+                    "Player2",
+                    game.test ? 3 : 0,
+                    9,
+                    0,
+                    2
+            };
     game.ended = false;
     game.winner = GamePlayer{
             "None"
     };
     game.currentPhase = 0;
-    for (int i = 0; i < 2; ++i) {
-        fflush(stdin);
-        string ask;
-        ask += "Jugador #";
-        ask += to_string(i + 1);
-        ask += " ingrese su nombre >> ";
-        string name = askForPlayerName(ask, "Ingresa un nombre correcto!");
-        int color = askForColor("Elije un color entre [1-6] >> ", "Ingrese un valor correcto!");
-        game.baseBoard.players[i].name = name;
-        game.baseBoard.players[i].color = color;
+    if (!game.test) {
+        for (int i = 0; i < 2; ++i) {
+            fflush(stdin);
+            string ask;
+            ask += "Jugador #";
+            ask += to_string(i + 1);
+            ask += " ingrese su nombre >> ";
+            string name = askForPlayerName(ask, "Ingresa un nombre correcto!");
+            int color = askForColor("Elije un color entre [1-6] >> ", "Ingrese un valor correcto!");
+            game.players[i].name = name;
+            game.players[i].color = color;
+        }
     }
     cleanConsole();
-//    putRandomPieces();
-//    PiecePosition *pieces1 = getPiecesPosition(game.baseBoard.players[0]);
-//    PiecePosition *pieces2 = getPiecesPosition(game.baseBoard.players[1]);
-//    for (int i = 0; i < 9; ++i) {
-//        cout << "Jugador #1" << pieces1[i].to_string() << endl;
-//    }
-//    for (int i = 0; i < 9; ++i) {
-//        cout << "Jugador #2" << pieces2[i].to_string() << endl;
-//    }
+    //    putRandomPieces();
+    //    PiecePosition *pieces1 = getPiecesPosition(game.baseBoard.players[0]);
+    //    PiecePosition *pieces2 = getPiecesPosition(game.baseBoard.players[1]);
+    //    for (int i = 0; i < 9; ++i) {
+    //        cout << "Jugador #1" << pieces1[i].to_string() << endl;
+    //    }
+    //    for (int i = 0; i < 9; ++i) {
+    //        cout << "Jugador #2" << pieces2[i].to_string() << endl;
+    //    }
     bool firstPlayerStart = rand() > (RAND_MAX / 2);
     GamePlayer *startPlayer;
     if (firstPlayerStart) {
-        startPlayer = &game.baseBoard.players[0];
+        startPlayer = &game.players[0];
     } else {
-        startPlayer = &game.baseBoard.players[1];
+        startPlayer = &game.players[1];
     }
-    drawGame(startPlayer->getColor() + startPlayer->name + " comienza! ->" + to_string((int) firstPlayerStart) +
-             RESET_COLOR);
-    game.currentTurn = startPlayer->identifier;
+    game.currentTurn = (startPlayer->identifier) - 1;
     drawGame(startPlayer->getColor() + startPlayer->name + " comienza!" + RESET_COLOR);
+    startNextPhase();
+    if (game.test) {
+        putRandomPieces(8);
+    }
     while (!game.ended) {
-        if (startPlayer->amountOfPiecesInBoard < 9) {
-            PiecePosition piecePosition = askForAMovement(*startPlayer);
-            if (isMovementValid(*startPlayer, piecePosition)) {
-                putPiece(piecePosition, *startPlayer);
-            } else {
-                cout << "Ingresa una posicion valida!" << endl;
+        if (checkWinner()) {
+            break;
+        }
+        GamePlayer *playerTurn;
+        playerTurn = &game.players[game.currentTurn];
+        if (game.currentPhase >= 2) {
+            playerTurn->pieceToMove = askForAMovement(*playerTurn, "mover en el tablero", true);
+        }
+        PiecePosition piecePosition = askForAMovement(*playerTurn);
+        if (isMovementValid(*playerTurn, piecePosition)) {
+            putPiece(piecePosition, *playerTurn);
+            game.currentTurn = game.nextTurn();
+        } else {
+            if (game.currentPhase >= 2) {
+                playerTurn->resetPieceMove();
             }
+            cout << "Ingresa una posicion valida!" << endl;
+        }
+        if (checkCurrentPhase()) {
+            startNextPhase();
         }
     }
+    winnerScreen();
 }
 
 void cleanConsole() {
@@ -418,7 +1010,7 @@ void cleanConsole() {
 }
 
 bool isColorAvailable(int color) {
-    for (auto &player: game.baseBoard.players) {
+    for (auto &player: game.players) {
         if (color == player.color) {
             return false;
         }
@@ -427,7 +1019,7 @@ bool isColorAvailable(int color) {
 }
 
 bool isValidName(const string &input) {
-    for (auto &player: game.baseBoard.players) {
+    for (auto &player: game.players) {
         if (input == player.name) {
             return false;
         }
@@ -485,7 +1077,7 @@ int askForColor(string question, string wrongAnswer) {
     return finalValue;
 }
 
-PiecePosition askForAMovement(GamePlayer &player, const string &ask) {
+PiecePosition askForAMovement(GamePlayer &player, const string &ask, const bool &checkSelf) {
     PiecePosition pos{};
     bool done = false;
     while (!done) {
@@ -502,11 +1094,27 @@ PiecePosition askForAMovement(GamePlayer &player, const string &ask) {
             int posLetter = (letter - 64) - 1;
             int posRow = (row - 48) - 1;
             if ((posLetter >= 0 && posLetter <= 6) && (posRow >= 0 && posRow <= 6)) {
-                done = true;
                 pos = PiecePosition{
                         letter,
                         (posRow + 1)
                 };
+                if (player.pieceToMove.letter == 'N') {
+                    if (!checkSelf) {
+                        done = true;
+                    } else {
+                        if (baseBoard.board[posLetter][posRow] == player.identifier) {
+                            done = true;
+                        } else {
+                            cout << "No puedes mover una ficha que no es tuya!!" << endl;
+                        }
+                    }
+                } else {
+                    if (!player.pieceToMove.equals(pos)) {
+                        done = true;
+                    } else {
+                        cout << "No puedes ingresar la misma ficha que quieres mover!" << endl;
+                    }
+                }
             } else {
                 cout << "Ingresa una valor correcto!" << endl;
             }
@@ -516,14 +1124,14 @@ PiecePosition askForAMovement(GamePlayer &player, const string &ask) {
 }
 
 string getColorOfDotFromBoard(string input, int locI, int locJ) {
-    int loc = game.baseBoard.baseBoard[locI][locJ];
+    int loc = baseBoard.board[locI][locJ];
     if (loc == 99 || loc == 88) {
         return input;
     }
     if (loc == 1) {
-        return game.baseBoard.players[0].getColor() + input + RESET_COLOR;
+        return game.players[0].getColor() + input + RESET_COLOR;
     } else if (loc == 2) {
-        return game.baseBoard.players[1].getColor() + input + RESET_COLOR;
+        return game.players[1].getColor() + input + RESET_COLOR;
     } else {
         return input;
     }
@@ -531,15 +1139,43 @@ string getColorOfDotFromBoard(string input, int locI, int locJ) {
 
 void putPiece(PiecePosition piecePosition, GamePlayer &player) {
     int *pos = piecePosition.fetch();
-    cout << "Updating to " << player.identifier << " in " << pos[0] << " , " << pos[2] << endl;
-    game.baseBoard.baseBoard[pos[0]][pos[1]] = player.identifier;
+//    cout << "Updating to " << player.identifier << " in " << pos[0] << " , " << pos[1] << endl;
+    baseBoard.board[pos[0]][pos[1]] = player.identifier;
 
     bool add = true;
     if (player.pieceToMove.letter != 'N') {
         add = false;
         int *posBefore = player.pieceToMove.fetch();
-        cout << "Updating to 0" << " in " << posBefore[0] << " , " << posBefore[2] << endl;
-        game.baseBoard.baseBoard[posBefore[0]][posBefore[1]] = 0; // Clean the move piece
+//        cout << "Updating to 0" << " in " << posBefore[0] << " , " << posBefore[1] << endl;
+        baseBoard.board[posBefore[0]][posBefore[1]] = 0; // Clean the move piece
+        if (isMovementMakeAWindmill(player.identifier, piecePosition)) {
+//            cout << "Hace molino elije una ficha" << endl;
+            cout << player.getColor() << player.name
+                 << " hizo molino, ahora escoge una ficha de tu rival!" + RESET_COLOR
+                 << endl;
+            bool freeMove = false;
+            if (allPiecesAreOnWill(*game.getPlayer(!(player.identifier - 1)))) {
+                cout << player.getColor()
+                     << "tu rival tiene todas sus fichas en molino, puedes quitar libremente una de ellas!"
+                     << RESET_COLOR << endl;
+                freeMove = true;
+            } else {
+                cout << player.getColor() << "solo puedes quitar la ficha de tu rival que no haga molino"
+                     << RESET_COLOR << endl;
+            }
+            PiecePosition toRemove = askForAMovement(player, "quitar");
+            if (!(freeMove ? (toRemove.valInBoard() != player.identifier || toRemove.valInBoard() != 0) : (
+                    toRemove.valInBoard() != player.identifier &&
+                    !isOnWindWill(toRemove)))) {
+                do {
+                    toRemove = askForAMovement(player, "quitar");
+                } while (freeMove ? toRemove.valInBoard() != player.identifier || toRemove.valInBoard() != 0 : (
+                        (toRemove.valInBoard() != player.identifier || toRemove.valInBoard() != 0) &&
+                        !isOnWindWill(toRemove)));
+            }
+            cout << "Toma pieza";
+            takePlayerPiece(player, toRemove);
+        }
         player.resetPieceMove(); // Reset Move
     }
 
@@ -547,7 +1183,10 @@ void putPiece(PiecePosition piecePosition, GamePlayer &player) {
         player.addPiece();
     }
 
-    // Render
+    // Render console debugs xd
+//    if (game.currentPhase != 2) {
+//        drawGame();
+//    }
     drawGame();
 }
 
@@ -556,7 +1195,7 @@ PiecePosition *getPiecesPosition(const GamePlayer &gamePlayer) {
     int index = 0;
     for (int i = 0; i < 7; ++i) {
         for (int j = 0; j < 7; ++j) {
-            int number = game.baseBoard.baseBoard[i][j];
+            int number = baseBoard.board[i][j];
             if (number == 99 || number == 88 || number == 0) {
                 continue;
             }
@@ -573,24 +1212,29 @@ PiecePosition *getPiecesPosition(const GamePlayer &gamePlayer) {
     return pieces;
 }
 
-GamePlayer getPlayerByPiece(PiecePosition piecePosition) {
+GamePlayer *getPlayerByPiece(PiecePosition piecePosition) {
     int *pos = piecePosition.fetch();
-    int onBoard = game.baseBoard.baseBoard[pos[0]][pos[1]];
-    return onBoard == 1 ? game.baseBoard.players[0] : onBoard == 2 ? game.baseBoard.players[1] : GamePlayer{"NONE"};
+    int onBoard = baseBoard.board[pos[0]][pos[1]];
+    return onBoard == 1 ? &game.players[0] : onBoard == 2 ? &game.players[1] : new GamePlayer{"NONE"};
 }
 
 void drawGame(const string &message) {
+    if (Console::WindowHeight != 100 && Console::WindowHeight != 50) {
+        Console::SetWindowSize(100, 50);
+    }
     cleanConsole();
     cout << "     | A |   | B |   | C |      | D |      | E |   | F |   | G |" << endl;
     cout << "\n";
     cout << "---  " + getColorOfDotFromBoard("*@@@*", 0, 0) + "                      " +
-            getColorOfDotFromBoard("*@@@*", 3, 0) + "                      " + getColorOfDotFromBoard("*@@@*", 6, 0) +
+            getColorOfDotFromBoard("*@@@*", 3, 0) + "                      " +
+            getColorOfDotFromBoard("*@@@*", 6, 0) +
             "  ---" << endl;
     cout << " 1   " + getColorOfDotFromBoard("*@@@*", 0, 0) + "----------------------" +
             getColorOfDotFromBoard("*@@@*", 3, 0) + "----------------------" +
             getColorOfDotFromBoard("*@@@*", 6, 0) + "   1 " << endl;
     cout << "---  " + getColorOfDotFromBoard("*@@@*", 0, 0) + "                      " +
-            getColorOfDotFromBoard("*@@@*", 3, 0) + "                      " + getColorOfDotFromBoard("*@@@*", 6, 0) +
+            getColorOfDotFromBoard("*@@@*", 3, 0) + "                      " +
+            getColorOfDotFromBoard("*@@@*", 6, 0) +
             "  ---" << endl;
     // End fila 1
     cout << "       |                          |                          |    " << endl;
@@ -678,7 +1322,7 @@ void drawGame(const string &message) {
     // End fila 7
     cout << "\n     | A |   | B |   | C |      | D |      | E |   | F |   | G |\n" << endl;
     for (int i = 0; i < 2; ++i) {
-        cout << game.baseBoard.players[i].getColor() << game.baseBoard.players[i].name << " -> Informacion!" << RESET_COLOR;
+        cout << game.players[i].getColor() << game.players[i].name << " -> Informacion!" << RESET_COLOR;
         if (i == 0) {
             cout << "         |         ";
         } else {
@@ -687,7 +1331,7 @@ void drawGame(const string &message) {
     }
     for (int i = 0; i < 2; ++i) {
         for (int j = 0; j < 2; ++j) {
-            GamePlayer player = game.baseBoard.players[j];
+            GamePlayer player = game.players[j];
             cout << player.getColor();
             switch (i) {
                 case 0: {
@@ -713,7 +1357,7 @@ void drawGame(const string &message) {
             }
         }
     }
-    if (!message.empty() && message != "X") {
+    if (message.length() > 0 && message != "X") {
         cout << MAIN_COLOR << "\nConsola:" << endl;
         cout << MAIN_COLOR << message << RESET_COLOR << endl;
     }
@@ -721,7 +1365,7 @@ void drawGame(const string &message) {
 
 bool isMovementValid(GamePlayer &player, PiecePosition movement) {
     int *moves = movement.fetch();
-    int pieceInBoard = game.baseBoard.baseBoard[moves[0]][moves[1]];
+    int pieceInBoard = baseBoard.board[moves[0]][moves[1]];
     if (pieceInBoard == 99 || pieceInBoard == 88) {
         // Return because this value is an invalid movement on baseBoard.
         return false;
@@ -731,29 +1375,40 @@ bool isMovementValid(GamePlayer &player, PiecePosition movement) {
             return pieceInBoard == 0; // Free space
         }
         case 2: {
-
-            break;
+            if (pieceInBoard == 1 || pieceInBoard == 2) {
+//                cout << "Retonra\n";
+                return false; // No puede mover la pieza a un lugar donde ya esta una pieza
+            }
+            return hasAnAdjacentPiece(movement, player, false);
         }
         case 3: {
-            return pieceInBoard == 0;
-            break;
+            return pieceInBoard == 0; // Salto
         }
     }
     return true;
 }
 
-bool isMovementMakeAWindmill(GamePlayer player, PiecePosition movement) {
-    return false;
+bool isMovementMakeAWindmill(int identifier, PiecePosition movement) {
+    bool xd = false;
+    PossibleWindMill possible = getWindMillsWithPiece(movement);
+    for (int i = 0; i < possible.amount; ++i) {
+        if (possible.pieces[i].isCompleteFor(identifier)) {
+            xd = true;
+            break;
+            //  return true; // Make a wind will
+        }
+    }
+    return xd;
 }
 
-bool takePlayerPiece(GamePlayer taker, PiecePosition pieceToTake) {
-    GamePlayer ownerPiece = getPlayerByPiece(pieceToTake);
-    if (ownerPiece.name == taker.name) {
+bool takePlayerPiece(GamePlayer &taker, PiecePosition pieceToTake) {
+    GamePlayer *ownerPiece = getPlayerByPiece(pieceToTake);
+    if (ownerPiece->name == taker.name) {
         return false; // Return false because its same player and cannot take this own piece.
     }
-    ownerPiece.amountOfPiecesInBoard = ownerPiece.amountOfPiecesInBoard - 1;
+    ownerPiece->amountOfPiecesInBoard = ownerPiece->amountOfPiecesInBoard - 1;
     int *pos = pieceToTake.fetch();
-    game.baseBoard.baseBoard[pos[0]][pos[1]] = 0; // Clean baseBoard space
+    baseBoard.board[pos[0]][pos[1]] = 0; // Clean baseBoard space
     return true;
 }
 
@@ -769,35 +1424,102 @@ void startNextPhase() {
             printWord(MAIN_COLOR + "La primera fase ha comenzado, colocen sus fichas!" + RESET_COLOR);
             break;
         case 2:
-            printWord(MAIN_COLOR + "La segunda fase ha comenzado, solo puedes colocar ficha" + RESET_COLOR);
+            printWord(MAIN_COLOR + "La segunda fase ha comenzado, solo puedes colocar ficha si esta adyacente" +
+                      RESET_COLOR);
             break;
         case 3:
-            printWord(MAIN_COLOR + "La tercera fase ha comenzado, el primero tenga 2 fichas pierde!" + RESET_COLOR);
+            printWord(MAIN_COLOR + "La tercera fase ha comenzado, el primero que tenga 2 fichas pierde!" +
+                      RESET_COLOR);
             break;
     }
 }
 
-bool canMove(const GamePlayer &player) {
-    return true;
+bool checkCurrentPhase() {
+    switch (game.currentPhase) {
+        case 1:
+            return game.players[0].amountOfPiecesInBoard == 9 &&
+                   game.players[1].amountOfPiecesInBoard == 9;
+        case 2:
+            return game.players[0].amountOfPiecesInBoard <= 3 || game.players[1].amountOfPiecesInBoard <= 3;
+        case 3:
+            break;
+    }
+    return false;
 }
 
-void checkWinner() {
+bool hasAnAdjacentPiece(PiecePosition position, GamePlayer &player, const bool &check) {
+    PiecePosition prev = check ? position.prev(0) : player.pieceToMove.prev(0); // Its free value
+    PiecePosition next = check ? position.next(0) : player.pieceToMove.next(0); // Its free value
+    PiecePosition up = check ? position.up(0) : player.pieceToMove.up(0);// Its free value
+    PiecePosition down = check ? position.down(0) : player.pieceToMove.down(0);// Its free value
+    bool a, b, c, d;
+    if (!prev.isEmpty()) {
+//        cout << "\nPrev no empty";
+        a = check || prev.equals(position);
+    }
+    if (!next.isEmpty()) {
+//        cout << "\nnext no empty";
+        b = check || next.equals(position);
+    }
+    if (!up.isEmpty()) {
+//        cout << "\nup no empty";
+        c = check || up.equals(position);
+    }
+    if (!down.isEmpty()) {
+//        cout << "\ndown no empty";
+//        cout << down.to_string() << "\n";
+        d = check || down.equals(position);
+    }
+    return a || b || c || d;
+}
+
+bool canMove(GamePlayer &player) {
+    if (game.currentTurn == 1) {
+        return true;
+    }
+    int adjacentPieces = 0;
+    if (game.currentPhase == 2) {
+        PiecePosition *pieces = getPiecesPosition(player);
+        for (int i = 0; i < player.amountOfPiecesInBoard; ++i) {
+            if (adjacentPieces >= 1) {
+                break;
+            }
+            PiecePosition *ps;
+            ps = &pieces[i];
+//            cout << "Verificando piesa adyacente" << ps->to_string() << endl;
+            if (hasAnAdjacentPiece(*ps, player, true)) {
+                adjacentPieces++;
+                break;
+            }
+        }
+    } else {
+        adjacentPieces = 1;
+    }
+    return adjacentPieces >= 1;
+}
+
+bool checkWinner() {
+    if (game.currentPhase == 0 || game.currentPhase == 1) {
+        return false;
+    }
     bool done = false;
     if (game.ended) {
-        return;
+        return true;
     }
 
     // Check if are any player on the baseBoard with 2 pieces.
-    for (const GamePlayer &player: game.baseBoard.players) {
-        if (done) { // Avoid check loop
+    for (GamePlayer &player: game.players) {
+        if (done) {
+            // Avoid check loop
             continue;
         }
         if (player.amountOfPiecesInBoard <= 2 || !canMove(player)) {
             done = true;
             game.ended = true;
             int playerWinner = player.identifier == 1 ? 0 : 1;
-            game.winner = game.baseBoard.players[playerWinner];
+            game.winner = game.players[playerWinner];
+            return true;
         }
     }
-
+    return false;
 }
